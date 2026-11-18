@@ -3,8 +3,10 @@ import csv,io
 from app.errors import DomainError
 from app.reader import decode
 from app.pipeline import calculate
-from app.store import save, latest, history, review, get_run
+from app.store import save, latest, history, review, get_run, switch, restore, recipe_state
 from app.web import bp as web
+from app.recipe import catalogue, policy_version
+from app.modules.m6_acceptance.rules import evidence_for
 
 from app.modules.m1_receiving.handler import bp as bp1
 from app.modules.m2_assay.handler import bp as bp2
@@ -66,6 +68,55 @@ def decide():
     try: version=int(body.get('revision',0))
     except (ValueError,TypeError): raise DomainError('VERSION','版本必须为整数')
     return jsonify(review(body.get('id'),version,body.get('decision')))
+@app.route('/api/recipe')
+def recipe_catalogue():
+    from app.config import RULE_VERSION
+    return jsonify({'rule_version':RULE_VERSION,'default':'V1','versions':catalogue()})
+
+
+def _switch_body():
+    body=request.get_json(silent=True)
+    ident=request.args.get('run_id') or (body or {}).get('id') or (body or {}).get('run_id')
+    if not ident: raise DomainError('REQUEST','缺少批次id')
+    return ident,body or {}
+
+
+@app.route('/api/recipe/switch',methods=['POST'])
+def recipe_switch():
+    ident,body=_switch_body()
+    batches=body.get('batches') or body.get('炉次')
+    if isinstance(batches,str): batches=[x for x in batches.replace('，',',').split(',') if x.strip()]
+    expected=body.get('expected_revision',body.get('switch_revision'))
+    policy=body.get('policy') or body.get('口径')
+    version=body.get('version') or body.get('配方版本') or (policy_version(policy) if policy else None)
+    return jsonify(switch(ident,version=version,batches=batches,
+                          policy=policy,expected_revision=expected,
+                          idempotency_key=body.get('idempotency_key')))
+
+
+@app.route('/api/recipe/restore',methods=['POST'])
+def recipe_restore():
+    ident,body=_switch_body()
+    expected=body.get('expected_revision',body.get('switch_revision'))
+    return jsonify(restore(ident,target_revision=body.get('target_revision',body.get('恢复点',0)),
+                           expected_revision=expected,idempotency_key=body.get('idempotency_key')))
+
+
+@app.route('/api/recipe/state')
+@app.route('/api/runs/<ident>/recipe')
+def recipe_run_state(ident=None):
+    return jsonify(recipe_state(ident or request.args['run_id']))
+
+
+@app.route('/api/runs/<ident>/evidence')
+def run_evidence(ident):
+    batch=request.args.get('batch')
+    if not batch: raise DomainError('REQUEST','缺少炉次')
+    result=get_run(ident)
+    return jsonify(evidence_for(result.get('acceptance',[]),result.get('normalized',[]),
+                                ((result.get('stages') or {}).get('1') or {}).get('rows') or [],batch))
+
+
 @app.route('/api/evidence.csv')
 def evidence():
     result=get_run(request.args['run_id']) if request.args.get('run_id') else (latest() or save(calculate()));out=io.StringIO(newline='')

@@ -28,6 +28,7 @@
 | TRAP-15 | 吨与千克 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m2_assay/rules.py` | `tests/test_m2.py::test_units` |
 | TRAP-19 | 批号元数据冲突优先 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_conflicting_lot_mass` |
 | TRAP-25 | 配方版本锁定 | 静默覆盖或误计 | 显式裁决并保留证据 | `app/modules/m3_recipe/rules.py` | `tests/test_m3.py::test_version_lock` |
+| TRAP-26 | 在制炉次配方版本 | 同一炉次混用两个配方版本或静默改写旧结论 | 每炉次唯一版本、切换原子、可恢复、旧结论留存 | `app/modules/m6_acceptance/rules.py`、`app/store.py` | `tests/test_recipe_switch.py` |
 
 ## 对账规则
 

@@ -3,7 +3,7 @@ from app.modules.m3_recipe.rules import apply
 from app.numeric import serial
 def execute(ctx):
     before=len(ctx['quarantine'])
-    result=apply(ctx)
+    result=apply(ctx, ctx.get('recipe_version'))
     result['stage']=3
     result['name']='配方约束'
     result['issues']=dict(Counter(row['原因码'] for row in ctx['quarantine']))

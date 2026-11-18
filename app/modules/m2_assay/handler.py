@@ -5,5 +5,5 @@ bp=Blueprint('m2',__name__)
 @bp.route('/api/m2', methods=['GET','POST'])
 def module_2():
     payload=request.get_json(silent=True) or {}
-    result=calculate(payload.get('csv'), stop=2)
+    result=calculate(payload.get('csv'), stop=2, recipe=payload.get('recipe') or payload.get('version'))
     return jsonify(serial(result['stages']['2']))

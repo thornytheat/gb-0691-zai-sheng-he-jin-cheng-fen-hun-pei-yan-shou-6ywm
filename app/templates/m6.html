@@ -1,2 +1,55 @@
 {% extends 'base.html' %}
-{% block stage_visual %}{% for r in run.acceptance %}<p>{{r["元素"]}}　<strong>{{r["验收"]}}</strong></p>{% endfor %}{% endblock %}
+{% block stage_visual %}
+<table class="batch-versions">
+<thead><tr><th>炉次</th><th>配方版本</th><th>口径</th><th>版本依据</th><th>原版本</th><th>改判</th></tr></thead>
+<tbody>
+{% for b in run.batch_versions %}
+<tr data-batch="{{b['炉次']}}">
+<td>{{b['炉次']}}</td><td><strong>{{b['配方版本']}}</strong></td><td>{{b['口径']}}</td>
+<td class="{{'sev--warn' if b['改判']=='是' else 'muted'}}">{{b['版本依据']}}</td>
+<td>{{b['原版本']}}</td><td class="{{'sev--warn' if b['改判']=='是' else 'muted'}}">{{b['改判']}}</td>
+</tr>
+{% endfor %}
+</tbody></table>
+{% for r in run.acceptance %}<p>{{r["炉次"]}} · {{r["元素"]}}　<strong>{{r["验收"]}}</strong> <span class="muted">对照 {{r["配方版本"]}}（{{r["下限_pct"]}}–{{r["上限_pct"]}}%，{{r["版本依据"]}}）</span></p>{% endfor %}
+{% if run.recomputed %}<p class="alert">配方规则已更新：{{run.acceptance_changed|join('、') or '无'}} 炉次结论已重算，旧版结论保留。</p>{% endif %}
+{% endblock %}
+
+{% block stage_extra %}
+<section class="panel">
+<div class="panel__head"><h2>配方版本切换</h2><span>当前批次 r{{run.switch_revision or 0}}</span></div>
+<div class="panel__body">
+<p class="muted">默认按投料版（V1）锁定；切换后所选炉次统一改用验收版（V2），并列入改判。</p>
+<label>切换口径
+<select id="recipe-policy">
+<option value="投料版">投料版 V1（锁定）</option>
+<option value="验收版">验收版 V2（重判）</option>
+</select></label>
+<label>炉次 <input id="recipe-batches" type="text" placeholder="留空=全部炉次，多个用逗号分隔" value="{{run.batch_versions|map(attribute='炉次')|join(',')}}"></label>
+<input type="hidden" id="recipe-expected" value="{{run.switch_revision or 0}}">
+<input type="hidden" id="recipe-run" value="{{run.manifest.run_id}}">
+<div class="controls"><button id="recipe-apply">应用配方口径</button><button id="recipe-restore">恢复到切换前</button></div>
+<div id="recipe-feedback" role="status" class="alert"></div>
+</div>
+{% if run.acceptance_history %}
+<div class="scroll"><table><thead><tr><th>切换点</th><th>动作</th><th>版本</th><th>炉次</th><th>改判</th><th>时间</th></tr></thead><tbody>
+{% for e in run.acceptance_history %}
+<tr><td>r{{e.get('revision')}}</td><td>{{e.get('action')}}</td><td>{{e.get('version') if e.get('action')=='切换' else '恢复至 r' ~ e.get('restored',0)}}</td><td>{{e.get('batches',[])|join(' / ')}}</td><td>{{e.get('changed',[])|join(' / ') or '—'}}</td><td>{{e.get('at')}}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% endif %}
+</section>
+
+<section class="panel span-all">
+<div class="panel__head"><h2>已验收依据与原始来料</h2><span>按炉次追溯</span></div>
+<div class="scroll"><table><thead><tr><th>炉次</th><th>配方版本</th><th>结论</th><th>依据批号</th><th>原始行号</th></tr></thead><tbody>
+{% for b in run.batch_versions %}
+{% set cons = run.acceptance|selectattr('炉次','equalto',b['炉次'])|list %}
+<tr><td>{{b['炉次']}}</td><td>{{b['配方版本']}}</td><td>{% for r in cons %}{{r['元素']}}={{r['验收']}}　{% endfor %}</td>
+<td>{{run.normalized|selectattr('batch','equalto',b['炉次'])|map(attribute='lot')|unique|join(' ')}}</td>
+<td>{{run.stages['1']['rows']|selectattr('batch','equalto',b['炉次'])|map(attribute='行号')|unique|join(' ')}}</td></tr>
+{% endfor %}
+</tbody></table></div>
+<p class="muted">依据可导出：/api/runs/{{run.manifest.run_id}}/evidence?batch=炉次</p>
+</section>
+{% endblock %}

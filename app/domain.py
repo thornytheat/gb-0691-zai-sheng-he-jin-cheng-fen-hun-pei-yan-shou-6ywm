@@ -1,7 +1,13 @@
 from decimal import Decimal
 from app.numeric import number, fmt
 from app.errors import DomainError
-TARGETS={'Cu':(Decimal('7.5'),Decimal('12.5')),'Zn':(Decimal('3'),Decimal('7'))}
+from app.recipe import targets as _targets
+
+class _Targets(dict):
+    """兼容旧调用；V1 投料版目标区间，按当前配方登记表取值。"""
+    def __getitem__(self,key): return _targets('V1',key)
+    def __contains__(self,key): return key in ('Cu','Zn')
+TARGETS=_Targets({'Cu':('7.5','12.5'),'Zn':('3','7')})
 def mass_kg(value,unit):
     if unit not in ('kg','t'): raise DomainError('UNIT','重量单位无效')
     value=number(value)*(1000 if unit=='t' else 1)

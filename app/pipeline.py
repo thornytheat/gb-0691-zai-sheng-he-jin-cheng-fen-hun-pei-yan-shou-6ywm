@@ -9,13 +9,15 @@ from app.config import SAMPLE
 from app.manifest import make
 from app.numeric import serial
 from time import perf_counter
-def calculate(text=None, stop=7):
+def calculate(text=None, stop=7, recipe=None):
     started=perf_counter()
     if text is None: text=SAMPLE.read_text(encoding='utf-8-sig')
     if not isinstance(text,str):
         from app.errors import DomainError
         raise DomainError('TYPE','CSV必须是文本')
-    ctx={'text':text,'rows':[],'quarantine':[],'stages':{},'manifest':make(text)}
+    from app.recipe import normalize_version
+    recipe=normalize_version(recipe)
+    ctx={'text':text,'rows':[],'quarantine':[],'stages':{},'manifest':make(text,recipe),'recipe_version':recipe}
     for stage in STAGES[:stop]: stage(ctx)
     ctx['manifest']['elapsed_ms']=round((perf_counter()-started)*1000,3)
     ctx.pop('text',None)

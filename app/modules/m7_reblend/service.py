@@ -3,7 +3,7 @@ from app.modules.m7_reblend.rules import apply
 from app.numeric import serial
 def execute(ctx):
     before=len(ctx['quarantine'])
-    result=apply(ctx)
+    result=apply(ctx, ctx.get('recipe_version'))
     result['stage']=7
     result['name']='复配批次'
     result['issues']=dict(Counter(row['原因码'] for row in ctx['quarantine']))
